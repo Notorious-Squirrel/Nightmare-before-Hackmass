@@ -15,22 +15,22 @@
     --accent2: #b15cff;  /* cyber purple */
   }
 
-  /* --- Background (stationary) --- */
-  html, body { height: 100%; }
+  /* --- Page + Background (fixed & stationary) --- */
+  html, body { height:100%; }
   body{
     margin:0;
-    min-height:100dvh;
+    height:100%;
     color:var(--text);
     font-family: system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
     line-height:1.25;
     background-color:#0b0f16; /* fallback so text isn't on white */
     background:
       radial-gradient(1200px 800px at 50% 20%, rgba(0,0,0,0.35), rgba(0,0,0,0.85)),
-      url("Background.jpeg") center/cover no-repeat fixed; /* fixed = stationary */
-    overflow-x:hidden;
+      url("Background.jpeg") center/cover no-repeat fixed; /* stays put */
+    overflow:hidden; /* no page scrolling */
   }
 
-  /* faint snowfall */
+  /* snowfall stays fixed above background */
   .snow, .snow:before, .snow:after{
     position:fixed; inset:0; pointer-events:none; content:"";
     background-image:
@@ -48,14 +48,15 @@
     to  { background-position: 0 100vh,  0  80vh,  0 120vh, 0  90vh,  0 140vh; }
   }
 
-  /* --- Page wrap --- */
+  /* --- Fixed overlay layout so cards don't move --- */
   .wrap{
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    gap: 18px;
-    padding: clamp(12px, 3vw, 24px);
-    min-height:100dvh;  /* ensures full-screen board over background */
+    position:fixed; inset:0;      /* pin the whole UI */
+    display:grid;
+    grid-template-rows: auto 1fr; /* title then board fills remaining */
+    align-content:center;
+    justify-items:center;
+    gap: clamp(8px, 2.5vmin, 20px);
+    padding: clamp(8px, 2vmin, 24px);
     box-sizing:border-box;
   }
 
@@ -70,47 +71,47 @@
     box-shadow: 0 10px 30px rgba(0,0,0,.4), 0 0 40px rgba(177,92,255,.25) inset;
   }
 
-  /* Title card */
+  /* Title card (kept compact so board fits) */
   .title{
     text-align:center;
-    padding: clamp(12px, 3.5vw, 22px);
+    padding: clamp(10px, 2.5vmin, 18px);
     width:min(1100px, 95%);
   }
   .title h1{
     margin:0;
-    font-size: clamp(28px, 5vw, 52px);
+    font-size: clamp(24px, 5vmin, 48px);
     letter-spacing: .02em;
     text-shadow: 0 0 16px rgba(0, 240, 200, .55), 0 0 32px rgba(177,92,255,.45);
     background: linear-gradient(90deg, var(--accent), var(--accent2));
     -webkit-background-clip:text; background-clip:text; color: transparent;
   }
   .subtitle{
-    margin-top:8px; color:#d6ffee; opacity:.9; font-size: clamp(14px, 2.4vw, 18px);
+    margin-top:6px; color:#d6ffee; opacity:.9; font-size: clamp(12px, 2.2vmin, 16px);
   }
 
-  /* --- Dice-5 board --- */
+  /* --- Dice-5 board (fixed size relative to viewport) --- */
   .board{
     position:relative;
-    width:min(1200px, 96%);
-    aspect-ratio: 16/9;         /* keep it cinematic; adapts responsively */
+    width: min(90vmin, 1100px); /* square based on the smaller viewport side */
+    aspect-ratio: 1 / 1;       /* keeps it square like a die face */
     display:grid;
     grid-template-columns: repeat(3, 1fr);
     grid-template-rows:    repeat(3, 1fr);
-    gap: clamp(10px, 2vw, 22px);
-    padding: clamp(8px, 1.8vw, 16px);
-    /* invisible container; cards float over the fixed background */
+    gap: clamp(8px, 1.6vmin, 18px);
+    padding: clamp(8px, 1.8vmin, 16px);
   }
 
   /* Card base */
   .stage{
-    padding:18px;
+    padding: clamp(12px, 2vmin, 18px);
     position:relative;
     overflow:hidden;
   }
   .stage h2{
-    margin:0 0 10px 0; font-size:22px; text-shadow: 0 0 12px rgba(0,240,200,.4);
+    margin:0 0 8px 0; font-size: clamp(14px, 2.2vmin, 20px);
+    text-shadow: 0 0 12px rgba(0,240,200,.4);
   }
-  .stage p{ margin:0 0 12px 0; opacity:.9; font-size:14px; }
+  .stage p{ margin:0 0 10px 0; opacity:.92; font-size: clamp(12px, 1.8vmin, 16px); }
 
   /* Place each card like the 5-pip on a die */
   .top-left     { grid-area: 1 / 1; }
@@ -122,22 +123,26 @@
   /* Inputs */
   .codebar{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
   .codebar input{
-    flex:1 1 180px; padding:12px 14px; font-size:16px; border-radius:12px;
+    flex:1 1 180px; padding:10px 12px; font-size: clamp(12px, 1.8vmin, 16px); border-radius:12px;
     border:2px solid transparent; outline:none; color:#101317;
     background: linear-gradient(#fff, #f2f7ff) padding-box,
                 repeating-linear-gradient(45deg, #ff0022 0 10px, #ffffff 10px 20px) border-box;
   }
   .codebar button{
-    flex:0 0 auto; padding:12px 16px; border:none; border-radius:12px; font-weight:700; cursor:pointer;
+    flex:0 0 auto; padding:10px 14px; border:none; border-radius:12px; font-weight:700; cursor:pointer;
     color:#071013; background: linear-gradient(90deg, var(--accent), var(--accent2));
     box-shadow: 0 8px 20px rgba(0,0,0,.35); transition: transform .06s ease;
+    font-size: clamp(12px, 1.8vmin, 16px);
   }
   .codebar button:active{ transform: translateY(1px) scale(.99); }
 
-  .msg{ margin-top:10px; min-height:1.2em; font-weight:700; text-shadow: 0 0 10px rgba(0,0,0,.35); }
+  .msg{ margin-top:8px; min-height:1.2em; font-weight:700; text-shadow: 0 0 10px rgba(0,0,0,.35); font-size: clamp(12px, 1.8vmin, 16px); }
   .msg.ok{ color:#9fffe2; } .msg.err{ color:#ffb3c0; }
 
-  .note{ text-align:center; opacity:.8; font-size:12px; padding:8px 12px 20px; }
+  .note{
+    position:fixed; left:50%; bottom:8px; transform:translateX(-50%);
+    text-align:center; opacity:.8; font-size:12px; padding:6px 10px;
+  }
 
   /* Subtle corner sparkle */
   .stage:after{
@@ -147,24 +152,23 @@
     transform: rotate(12deg); filter: blur(2px);
   }
 
-  /* Small screens: let board grow taller for readability */
-  @media (max-width: 680px){
-    .board{ aspect-ratio: auto; grid-auto-rows: minmax(140px, auto); }
+  /* Very small screens: allow the board to shrink but still fixed */
+  @media (max-width: 520px){
+    .board{ width: 94vmin; }
   }
 </style>
 </head>
 <body>
 <div class="snow"></div>
 
-<main class="wrap">
-
+<main class="wrap" aria-label="Fixed UI overlay">
   <!-- Title card -->
   <header class="title candy" role="banner" aria-label="Jack's Back, Christmas Attack">
     <h1>Jack’s Back, Christmas Attack</h1>
     <div class="subtitle">Enter the stage access codes to breach North Pole HQ. Candy-cane security won’t know what hit it.</div>
   </header>
 
-  <!-- Dice-5 layout board -->
+  <!-- Dice-5 layout board (fixed position over image) -->
   <section class="board" aria-label="Stage Access Grid">
     <!-- Top-left -->
     <article class="stage candy top-left" data-stage="1" data-code="Flag{S1-EXAMPLE}" data-url="">
