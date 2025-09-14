@@ -11,11 +11,10 @@
     --glass: rgba(255,255,255,0.12);
     --glass-strong: rgba(255,255,255,0.22);
     --text: #eaf7ff;
-    --accent: #00f0c8;   /* frosty neon */
-    --accent2: #b15cff;  /* cyber purple */
+    --accent: #00f0c8;
+    --accent2: #b15cff;
   }
 
-  /* --- Page + Background (fixed & stationary) --- */
   html, body { height:100%; }
   body{
     margin:0;
@@ -23,14 +22,14 @@
     color:var(--text);
     font-family: system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
     line-height:1.25;
-    background-color:#0b0f16; /* fallback so text isn't on white */
     background:
       radial-gradient(1200px 800px at 50% 20%, rgba(0,0,0,0.35), rgba(0,0,0,0.85)),
-      url("Background.jpeg") center/cover no-repeat fixed; /* stays put */
-    overflow:hidden; /* no page scrolling */
+      url("Background.jpeg") center/cover no-repeat fixed;
+    background-color:#0b0f16;
+    overflow:hidden;
   }
 
-  /* snowfall stays fixed above background */
+  /* snowfall */
   .snow, .snow:before, .snow:after{
     position:fixed; inset:0; pointer-events:none; content:"";
     background-image:
@@ -48,231 +47,177 @@
     to  { background-position: 0 100vh,  0  80vh,  0 120vh, 0  90vh,  0 140vh; }
   }
 
-  /* --- Fixed overlay layout so cards don't move --- */
   .wrap{
-    position:fixed; inset:0;      /* pin the whole UI */
-    display:grid;
-    grid-template-rows: auto 1fr; /* title then board fills remaining */
-    align-content:center;
-    justify-items:center;
-    gap: clamp(8px, 2.5vmin, 20px);
-    padding: clamp(8px, 2vmin, 24px);
-    box-sizing:border-box;
+    position:fixed; inset:0;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    gap:20px;
   }
 
-  /* Candy-cane border (titles & panels) */
   .candy{
     border: 10px solid transparent;
     border-image: repeating-linear-gradient(45deg, #ff0022 0 12px, #ffffff 12px 24px) 12;
     border-radius: 18px;
-    background: linear-gradient( to bottom right, var(--glass-strong), rgba(0,0,0,.25) );
+    background: linear-gradient(to bottom right, var(--glass-strong), rgba(0,0,0,.25));
     backdrop-filter: blur(8px) saturate(140%);
     -webkit-backdrop-filter: blur(8px) saturate(140%);
     box-shadow: 0 10px 30px rgba(0,0,0,.4), 0 0 40px rgba(177,92,255,.25) inset;
   }
 
-  /* Title card (kept compact so board fits) */
   .title{
     text-align:center;
-    padding: clamp(10px, 2.5vmin, 18px);
-    width:min(1100px, 95%);
+    padding:16px;
   }
   .title h1{
     margin:0;
-    font-size: clamp(24px, 5vmin, 48px);
-    letter-spacing: .02em;
-    text-shadow: 0 0 16px rgba(0, 240, 200, .55), 0 0 32px rgba(177,92,255,.45);
+    font-size:clamp(28px, 5vw, 52px);
     background: linear-gradient(90deg, var(--accent), var(--accent2));
-    -webkit-background-clip:text; background-clip:text; color: transparent;
-  }
-  .subtitle{
-    margin-top:6px; color:#d6ffee; opacity:.9; font-size: clamp(12px, 2.2vmin, 16px);
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+    text-shadow:0 0 16px rgba(0,240,200,.55), 0 0 32px rgba(177,92,255,.45);
   }
 
-  /* --- Dice-5 board (fixed size relative to viewport) --- */
+  .start-btn{
+    padding:20px 40px;
+    font-size:clamp(20px,4vw,28px);
+    font-weight:bold;
+    border:none;
+    border-radius:14px;
+    cursor:pointer;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    color:#071013;
+    box-shadow:0 8px 20px rgba(0,0,0,.35);
+  }
+  .start-btn:active{ transform:translateY(1px) scale(.98); }
+
   .board{
-    position:relative;
-    width: min(90vmin, 1100px); /* square based on the smaller viewport side */
-    aspect-ratio: 1 / 1;       /* keeps it square like a die face */
     display:grid;
-    grid-template-columns: repeat(3, 1fr);
-    grid-template-rows:    repeat(3, 1fr);
-    gap: clamp(8px, 1.6vmin, 18px);
-    padding: clamp(8px, 1.8vmin, 16px);
+    grid-template-columns: repeat(3,1fr);
+    grid-template-rows: repeat(3,1fr);
+    gap:18px;
+    width:min(90vmin, 1100px);
+    aspect-ratio:1/1;
   }
+  .stage{ padding:16px; display:none; }
+  .stage h2{ margin:0 0 8px 0; }
+  .msg{ margin-top:8px; font-weight:bold; }
+  .msg.ok{ color:#9fffe2; }
+  .msg.err{ color:#ffb3c0; }
 
-  /* Card base */
-  .stage{
-    padding: clamp(12px, 2vmin, 18px);
-    position:relative;
-    overflow:hidden;
-  }
-  .stage h2{
-    margin:0 0 8px 0; font-size: clamp(14px, 2.2vmin, 20px);
-    text-shadow: 0 0 12px rgba(0,240,200,.4);
-  }
-  .stage p{ margin:0 0 10px 0; opacity:.92; font-size: clamp(12px, 1.8vmin, 16px); }
+  .top-left{grid-area:1/1;}
+  .top-right{grid-area:1/3;}
+  .center{grid-area:2/2;}
+  .bottom-left{grid-area:3/1;}
+  .bottom-right{grid-area:3/3;}
 
-  /* Place each card like the 5-pip on a die */
-  .top-left     { grid-area: 1 / 1; }
-  .top-right    { grid-area: 1 / 3; }
-  .center       { grid-area: 2 / 2; }
-  .bottom-left  { grid-area: 3 / 1; }
-  .bottom-right { grid-area: 3 / 3; }
-
-  /* Inputs */
-  .codebar{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
-  .codebar input{
-    flex:1 1 180px; padding:10px 12px; font-size: clamp(12px, 1.8vmin, 16px); border-radius:12px;
-    border:2px solid transparent; outline:none; color:#101317;
-    background: linear-gradient(#fff, #f2f7ff) padding-box,
-                repeating-linear-gradient(45deg, #ff0022 0 10px, #ffffff 10px 20px) border-box;
-  }
+  .codebar{ display:flex; gap:10px; flex-wrap:wrap; }
+  .codebar input{ flex:1 1 160px; padding:10px; border-radius:10px; }
   .codebar button{
-    flex:0 0 auto; padding:10px 14px; border:none; border-radius:12px; font-weight:700; cursor:pointer;
-    color:#071013; background: linear-gradient(90deg, var(--accent), var(--accent2));
-    box-shadow: 0 8px 20px rgba(0,0,0,.35); transition: transform .06s ease;
-    font-size: clamp(12px, 1.8vmin, 16px);
-  }
-  .codebar button:active{ transform: translateY(1px) scale(.99); }
-
-  .msg{ margin-top:8px; min-height:1.2em; font-weight:700; text-shadow: 0 0 10px rgba(0,0,0,.35); font-size: clamp(12px, 1.8vmin, 16px); }
-  .msg.ok{ color:#9fffe2; } .msg.err{ color:#ffb3c0; }
-
-  .note{
-    position:fixed; left:50%; bottom:8px; transform:translateX(-50%);
-    text-align:center; opacity:.8; font-size:12px; padding:6px 10px;
-  }
-
-  /* Subtle corner sparkle */
-  .stage:after{
-    content:""; position:absolute; inset:auto -30px -30px auto; width:140px; height:140px;
-    background: radial-gradient(60px 60px at 70% 70%, rgba(0,240,200,.28), transparent 55%),
-                radial-gradient(50px 50px at 30% 30%, rgba(177,92,255,.22), transparent 60%);
-    transform: rotate(12deg); filter: blur(2px);
-  }
-
-  /* Very small screens: allow the board to shrink but still fixed */
-  @media (max-width: 520px){
-    .board{ width: 94vmin; }
+    padding:10px 14px; border:none; border-radius:10px; cursor:pointer;
+    background:linear-gradient(90deg,var(--accent),var(--accent2));
+    font-weight:bold;
   }
 </style>
 </head>
 <body>
 <div class="snow"></div>
-
-<main class="wrap" aria-label="Fixed UI overlay">
-  <!-- Title card -->
-  <header class="title candy" role="banner" aria-label="Jack's Back, Christmas Attack">
+<main class="wrap">
+  <header class="title candy">
     <h1>Jack’s Back, Christmas Attack</h1>
-    <div class="subtitle">Enter the stage access codes to breach North Pole HQ. Candy-cane security won’t know what hit it.</div>
+    <p>Save Christmas by unlocking each stage in order.</p>
   </header>
 
-  <!-- Dice-5 layout board (fixed position over image) -->
-  <section class="board" aria-label="Stage Access Grid">
-    <!-- Top-left -->
-    <article class="stage candy top-left" data-stage="1" data-code="Flag{S1-EXAMPLE}" data-url="">
+  <!-- Start button -->
+  <button class="start-btn" onclick="startGame()">🎄 Save Christmas 🎄</button>
+
+  <!-- Stages board -->
+  <section class="board">
+    <article class="stage candy top-left" data-stage="1" data-code="Flag{S1-EXAMPLE}">
       <h2>Stage 1 — Frostbyte Recon</h2>
-      <p>Scrape the candy-cane turnstiles for stray creds. When you’ve got the flag, enter it here.</p>
+      <p>Find the stray creds and enter the flag.</p>
       <div class="codebar">
-        <input type="text" inputmode="latin" spellcheck="false" autocomplete="off" placeholder="Enter Stage 1 code…">
+        <input type="text" placeholder="Stage 1 code…">
         <button onclick="check(this)">Unlock</button>
       </div>
-      <div class="msg" aria-live="polite"></div>
+      <div class="msg"></div>
     </article>
 
-    <!-- Top-right -->
-    <article class="stage candy top-right" data-stage="2" data-code="Flag{S2-EXAMPLE}" data-url="">
+    <article class="stage candy top-right" data-stage="2" data-code="Flag{S2-EXAMPLE}">
       <h2>Stage 2 — Sleigh Stack Overflow</h2>
-      <p>Patch the flight deck telemetry. Submit your recovered key to advance.</p>
+      <p>Patch the flight deck telemetry.</p>
       <div class="codebar">
-        <input type="text" placeholder="Enter Stage 2 code…" autocomplete="off" spellcheck="false">
+        <input type="text" placeholder="Stage 2 code…">
         <button onclick="check(this)">Unlock</button>
       </div>
-      <div class="msg" aria-live="polite"></div>
+      <div class="msg"></div>
     </article>
 
-    <!-- Center -->
-    <article class="stage candy center" data-stage="3" data-code="Flag{S3-EXAMPLE}" data-url="">
+    <article class="stage candy center" data-stage="3" data-code="Flag{S3-EXAMPLE}">
       <h2>Stage 3 — Elf Control</h2>
-      <p>Pivot through Elf Control. The door opens only to the true string.</p>
+      <p>Pivot through Elf Control.</p>
       <div class="codebar">
-        <input type="text" placeholder="Enter Stage 3 code…" autocomplete="off" spellcheck="false">
+        <input type="text" placeholder="Stage 3 code…">
         <button onclick="check(this)">Unlock</button>
       </div>
-      <div class="msg" aria-live="polite"></div>
+      <div class="msg"></div>
     </article>
 
-    <!-- Bottom-left -->
-    <article class="stage candy bottom-left" data-stage="4" data-code="Flag{S4-EXAMPLE}" data-url="">
+    <article class="stage candy bottom-left" data-stage="4" data-code="Flag{S4-EXAMPLE}">
       <h2>Stage 4 — Candy Cane Cipher</h2>
-      <p>Unwrap the stripes to reveal the secret. Paste the exact flag.</p>
+      <p>Unwrap the stripes to reveal the secret.</p>
       <div class="codebar">
-        <input type="text" placeholder="Enter Stage 4 code…" autocomplete="off" spellcheck="false">
+        <input type="text" placeholder="Stage 4 code…">
         <button onclick="check(this)">Unlock</button>
       </div>
-      <div class="msg" aria-live="polite"></div>
+      <div class="msg"></div>
     </article>
 
-    <!-- Bottom-right (final) -->
     <article class="stage candy bottom-right" data-stage="5" data-code="Flag{S5-OMEGA}" data-url="Nexus5.html">
       <h2>Final — Jack’s Backdoor</h2>
-      <p>All roads lead to Santa’s mainframe. Enter the ultimate flag to breach the Workshop.</p>
+      <p>Enter the ultimate flag to breach Santa’s Workshop.</p>
       <div class="codebar">
-        <input type="text" placeholder="Enter Final code…" autocomplete="off" spellcheck="false">
+        <input type="text" placeholder="Final code…">
         <button onclick="check(this)">Unlock</button>
       </div>
-      <div class="msg" aria-live="polite"></div>
+      <div class="msg"></div>
     </article>
   </section>
-
-  <p class="note">Tip: Codes are case-sensitive. If a redirect is configured for a stage, you’ll jump there on success.</p>
 </main>
 
 <script>
-  /* Basic inline validator. Compares input to data-code. If data-url is set, redirect on success. */
-  function check(btn){
-    const card = btn.closest('.stage');
-    const input = card.querySelector('input');
-    const msg = card.querySelector('.msg');
-    const want = (card.dataset.code || '').trim();
-    const got  = (input.value || '').trim();
+function startGame(){
+  document.querySelector(".start-btn").style.display="none";
+  document.querySelector('.stage[data-stage="1"]').style.display="block";
+}
 
-    if(!got){ msg.textContent = "Enter a code first."; msg.className = "msg err"; input.focus(); return; }
+function check(btn){
+  const card = btn.closest('.stage');
+  const input = card.querySelector('input');
+  const msg = card.querySelector('.msg');
+  const want = card.dataset.code.trim();
+  const got  = (input.value || "").trim();
 
-    if(got === want){
-      msg.textContent = "✅ Access granted. Ho-ho-hold tight…";
-      msg.className = "msg ok";
-      sparkle(card);
-      const url = (card.dataset.url || '').trim();
-      if(url){ setTimeout(()=> location.href = url, 700); }
-    }else{
-      msg.textContent = "❌ Nope. That candy cane bends a different way.";
-      msg.className = "msg err";
-      input.focus();
+  if(!got){ msg.textContent="Enter a code."; msg.className="msg err"; return; }
+
+  if(got === want){
+    msg.textContent="✅ Correct!";
+    msg.className="msg ok";
+
+    // reveal next stage
+    const stageNum = parseInt(card.dataset.stage,10);
+    const next = document.querySelector(`.stage[data-stage="${stageNum+1}"]`);
+    if(next){ next.style.display="block"; }
+
+    // redirect if final has url
+    if(card.dataset.url){
+      setTimeout(()=>location.href=card.dataset.url,800);
     }
+  }else{
+    msg.textContent="❌ Wrong code.";
+    msg.className="msg err";
   }
-
-  /* Tiny sparkle burst */
-  function sparkle(node){
-    const s = document.createElement('span');
-    s.style.position='absolute';
-    s.style.left='50%'; s.style.top='12px';
-    s.style.width='8px'; s.style.height='8px';
-    s.style.borderRadius='50%';
-    s.style.boxShadow='0 0 12px #00f0c8, 0 0 24px #b15cff, 16px 8px 0 0 rgba(255,255,255,.9), -12px -6px 0 0 rgba(255,255,255,.6)';
-    s.style.filter='blur(.2px)';
-    node.appendChild(s);
-    setTimeout(()=> s.remove(), 600);
-  }
-
-  /* Accessibility: submit with Enter */
-  document.addEventListener('keydown', e=>{
-    if(e.key === 'Enter' && e.target.matches('.codebar input')){
-      const btn = e.target.closest('.codebar').querySelector('button');
-      btn && btn.click();
-    }
-  });
+}
 </script>
 </body>
 </html>
