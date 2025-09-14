@@ -22,9 +22,10 @@
     color:var(--text);
     font-family: system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
     line-height:1.25;
+    background-color:#0b0f16; /* fallback so text isn't on white */
     background:
       radial-gradient(1200px 800px at 50% 20%, rgba(0,0,0,0.35), rgba(0,0,0,0.85)),
-      url("Background.jpeg) center/cover fixed no-repeat;
+      url("Background.jpeg") center/cover fixed no-repeat;
     overflow-x:hidden;
   }
 
@@ -177,12 +178,6 @@
 
   <!-- Stages -->
   <section class="grid" aria-label="Stage Access Grid">
-    <!--
-      HOW TO CONFIGURE:
-      - Set data-code="YourExactCode" (case sensitive) for each stage.
-      - Optional: set data-url="nextpage.html" to redirect on success.
-      - Leave data-url blank to just show a success message.
-    -->
 
     <article class="stage candy" data-stage="1" data-code="Flag{S1-EXAMPLE}" data-url="">
       <h2>Stage 1 — Frostbyte Recon</h2>
@@ -239,7 +234,6 @@
 </main>
 
 <script>
-  /* Basic inline validator. Compares input to data-code. If data-url is set, redirect on success. */
   function check(btn){
     const card = btn.closest('.stage');
     const input = card.querySelector('input');
@@ -252,7 +246,6 @@
     if(got === want){
       msg.textContent = "✅ Access granted. Ho-ho-hold tight…";
       msg.className = "msg ok";
-      // simple confetti sparkle (non-blocking)
       sparkle(card);
       const url = (card.dataset.url || '').trim();
       if(url){ setTimeout(()=> location.href = url, 700); }
@@ -263,7 +256,6 @@
     }
   }
 
-  /* Tiny sparkle burst */
   function sparkle(node){
     const s = document.createElement('span');
     s.style.position='absolute';
@@ -276,7 +268,6 @@
     setTimeout(()=> s.remove(), 600);
   }
 
-  /* Accessibility: submit with Enter */
   document.addEventListener('keydown', e=>{
     if(e.key === 'Enter' && e.target.matches('.codebar input')){
       const btn = e.target.closest('.codebar').querySelector('button');
