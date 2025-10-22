@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Krampus Crossing – Stage 2</title>
+<style>
+  html,body { margin:0; background:#0b0e13; font-family:system-ui,Segoe UI,Roboto,Arial; color:#e7f2ff; }
+  .wrap { display:flex; flex-direction:column; align-items:center; gap:8px; padding:12px; }
+  canvas { background:linear-gradient(#0f1620 35%, #122131 65%); border:2px solid #2d4059; border-radius:10px; box-shadow:0 10px 30px #0008; touch-action:none }
+  .hud { width:480px; max-width:95vw; display:flex; justify-content:space-between; align-items:center; font-weight:600; }
+  .btns { display:none; gap:8px; flex-wrap:wrap; justify-content:center; }
+  .btns button { min-width:74px; min-height:54px; border-radius:10px; background:#1b2940; border:1px solid #2d4059; color:#e7f2ff; font-weight:700; }
+  .flag { display:none; background:#0e1a2a; border:1px solid #355; padding:10px 12px; border-radius:8px; width:480px; max-width:95vw; }
+  @media (max-width:620px){ .btns{display:flex} .hud{width:100%} }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hud">
+      <div id="lives">❤️ x3</div>
+      <div id="level">Level 1</div>
+      <div id="score">Score 00000</div>
+    </div>
+    <canvas id="game" width="480" height="640" aria-label="Krampus Crossing"></canvas>
+
+    <div class="btns" aria-label="Mobile controls">
+      <button data-d="up">▲</button>
+      <div style="display:flex; gap:8px">
+        <button data-d="left">◀</button>
+        <button data-d="down">▼</button>
+        <button data-d="right">▶</button>
+      </div>
+    </div>
+
+    <div id="flagBox" class="flag"></div>
+  </div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const c = canvas.getContext('2d');
+
+  // --- Grid / sizing ---
+  const COLS = 12, ROWS = 16;
+  const CELL = Math.floor(canvas.width / COLS); // 40px on 480 width
+  const H = CELL * ROWS; // 640
+  canvas.height = H;
+
+  // --- Game state ---
+  const state = {
+    level: 1,
+    score: 0,
+    lives: 3,
+    goalsFilled: 0,
+    requiredGoals: 3,
+    over: false,
+    letters: new Set(), // collectable letters for CTF
+    t: 0
+  };
+
+  // --- Lanes definition ---
+  // y indices from top (0) to bottom (ROWS-1)
+  // Type 'road' = collisions with hazards; 'ice' = requires platform or drown
+  const lanes = [
+    { y: 1, type: 'goal' }, // chimney row
+    { y: 2, type: 'safe', snow: true },
+    { y: 3, type: 'ice', dir: 1, speed: 0.7, density: 0.23 },
+    { y: 4, type: 'ice', dir:-1, speed: 0.9, density: 0.25 },
+    { y: 5, type: 'ice', dir: 1, speed: 1.1, density: 0.27 },
+    { y: 6, type: 'safe', snow: true },
+    { y: 7, type: 'road', dir:-1, speed: 1.2, density: 0.28 },
+    { y: 8, type: 'road', dir: 1, speed: 1.4, density: 0.30 },
+    { y: 9, type: 'road', dir:-1, speed: 1.6, density: 0.32 },
+    { y:10, type: 'safe', snow: true },
+    { y:11, type: 'road', dir: 1, speed: 1.3, density: 0.26 },
+    { y:12, type: 'road', dir:-1, speed: 1.5, density: 0.28 },
+    { y:13, type: 'safe', snow: true },
+    { y:14, type: 'road', dir: 1, speed: 1.2, density: 0.24 },
+  ];
+
+  // --- Player (Krampus) ---
+  const player = {
+    col: Math.floor(COLS/2),
+    row: ROWS-1,
+    w: 0.8, h: 0.8, // relative to cell
+    vx: 0, // drift when on ice platform
+  };
+
+  // --- Entities ---
+  const hazards = [];   // sleds/nutcrackers cars
+  const platforms = []; // ice blocks / skating elves
+  const letters = [];   // collectibles e.g., 'C','T','F','2'
+
+  function resetPlayer() {
+    player.col = Math.floor(COLS/2);
+    player.row = ROWS-1;
+    player.vx = 0;
+  }
+
+  // Spawn helpers
+  function spawnRow(lane) {
+    const count = Math.floor(COLS * lane.density);
+    for (let i=0;i<count;i++){
+      const size = lane.type==='road' ? (Math.random()<0.5?1:2) : (Math.random()<0.5?2:3);
+      const speed = lane.speed * (1 + 0.08*(state.level-1));
+      const dir = lane.dir;
+      const x = Math.random()*COLS;
+      if (lane.type==='road'){
+        hazards.push({ lane:lane.y, x, size, speed, dir });
+      } else if (lane.type==='ice'){
+        platforms.push({ lane:lane.y, x, size, speed, dir });
+      }
+    }
+  }
+
+  function populate() {
+    hazards.length = 0; platforms.length = 0; letters.length = 0;
+    for (const lane of lanes){
+      if (lane.type==='road' || lane.type==='ice') spawnRow(lane);
+    }
+    // place letters across random safe/ice lanes (CTF hook)
+    const needed = ['C','T','F','2'];
+    needed.forEach(ch => {
+      let placed=false;
+      while(!placed){
+        const lane = lanes[Math.floor(Math.random()*lanes.length)];
+        if (lane.type==='safe' || lane.type==='ice') {
+          const col = 1 + Math.floor(Math.random()*(COLS-2));
+          letters.push({ch, col, row: lane.y, taken:false});
+          placed=true;
+        }
+      }
+    });
+  }
+
+  // Movement & input
+  const held = { up:false,down:false,left:false,right:false };
+  function move(d){
+    if (state.over) return;
+    if (d==='up'   && player.row>0)        player.row--;
+    if (d==='down' && player.row<ROWS-1)   player.row++;
+    if (d==='left' && player.col>0)        player.col--;
+    if (d==='right'&& player.col<COLS-1)   player.col++;
+    state.score += 3;
+  }
+
+  addEventListener('keydown',e=>{
+    const k = e.key.toLowerCase();
+    if (['arrowup','w'].includes(k)) move('up');
+    if (['arrowdown','s'].includes(k)) move('down');
+    if (['arrowleft','a'].includes(k)) move('left');
+    if (['arrowright','d'].includes(k)) move('right');
+  });
+
+  // Mobile controls
+  document.querySelectorAll('.btns button').forEach(b=>{
+    b.addEventListener('click', ()=> move(b.dataset.d));
+  });
+
+  // Utils
+  function rectFor(col,row,w=1,h=1){
+    const px = col*CELL + (CELL*(1-w))/2;
+    const py = row*CELL + (CELL*(1-h))/2;
+    return { x:px, y:py, w:CELL*w, h:CELL*h };
+  }
+  function intersects(a,b){ return a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y; }
+
+  // Game loop
+  function step(dt) {
+    state.t += dt;
+
+    // Move hazards/platforms
+    function adv(list){
+      for (const o of list){
+        o.x += o.speed * o.dir * dt * 0.06; // tune speed scaler
+        if (o.x < -3) o.x += COLS+5;
+        if (o.x > COLS+3) o.x -= COLS+5;
+      }
+    }
+    adv(hazards); adv(platforms);
+
+    // Ice drift if standing on platform
+    player.vx = 0;
+    const lane = lanes.find(l => l.y===player.row);
+    if (lane && lane.type==='ice'){
+      // Check if on platform
+      let onPlat=false;
+      for (const p of platforms){
+        if (p.lane!==player.row) continue;
+        const pr = rectFor(p.x, p.lane, p.size, 0.9);
+        const kr = rectFor(player.col, player.row, player.w, player.h);
+        // Shift p.x fractional for rect; test proximity
+        if (intersects(kr, pr)){ onPlat=true; player.vx = p.speed*p.dir*dt*0.06; break; }
+      }
+      if (!onPlat) die();
+    }
+
+    // Apply drift (fractional col position → snap when drawing/colliding)
+    if (player.vx !== 0){
+      const newX = player.col + player.vx;
+      player.col = Math.max(0, Math.min(COLS-1, newX));
+    }
+
+    // Collisions on road lanes
+    if (lane && lane.type==='road'){
+      const kr = rectFor(player.col, player.row, player.w, player.h);
+      for (const h of hazards){
+        if (h.lane!==player.row) continue;
+        const hr = rectFor(h.x, h.lane, h.size, 0.8);
+        if (intersects(kr, hr)) { die(); break; }
+      }
+    }
+
+    // Letter pickups
+    for (const L of letters){
+      if (L.taken) continue;
+      if (Math.round(player.row)===L.row && Math.round(player.col)===L.col){
+        L.taken=true; state.letters.add(L.ch); state.score+=25;
+      }
+    }
+
+    // Reached goals row?
+    if (player.row===1){
+      // Optional: require all letters to bank a goal
+      const need = ['C','T','F','2'];
+      const ok = need.every(ch => state.letters.has(ch));
+      if (ok){
+        state.goalsFilled++;
+        state.score += 250;
+        state.letters.clear();
+        // Show a subtle progress toast (optional)
+        if (state.goalsFilled>=state.requiredGoals) win();
+      }
+      resetPlayer();
+    }
+  }
+
+  function die(){
+    state.lives--;
+    updateHud();
+    if (state.lives<=0) {
+      state.over = true;
+    }
+    resetPlayer();
+  }
+
+  function win(){
+    state.level++;
+    state.goalsFilled = 0;
+    state.requiredGoals = Math.min(5, state.requiredGoals+1);
+    // Reveal flag if perfect (no deaths since level start) OR level 3+
+    const flagBox = document.getElementById('flagBox');
+    if (state.level>=3){
+      // You can change the flag format to suit your CTF
+      flagBox.textContent = 'Flag{KRAMPUS-CROSSING-STAGE2}';
+      flagBox.style.display = 'block';
+      // Also stash in localStorage as a breadcrumb:
+      try { localStorage.setItem('xmas_s2_flag','Flag{KRAMPUS-CROSSING-STAGE2}'); } catch(e){}
+    }
+    populate();
+    updateHud();
+    resetPlayer();
+  }
+
+  // Rendering
+  function draw() {
+    // Background lanes
+    c.clearRect(0,0,canvas.width,canvas.height);
+
+    for (let r=0;r<ROWS;r++){
+      const lane = lanes.find(l=>l.y===r);
+      if (lane?.type==='goal'){
+        // Chimneys row
+        c.fillStyle = '#1a2a3d';
+        c.fillRect(0,r*CELL,canvas.width,CELL);
+        // Chimneys
+        for (let i=0;i<COLS;i+=3){
+          c.fillStyle = '#572b2b';
+          c.fillRect(i*CELL+10, r*CELL+6, CELL-20, CELL-12);
+          c.fillStyle = '#333';
+          c.fillRect(i*CELL+14, r*CELL, CELL-28, 10);
+        }
+      } else if (lane?.type==='ice'){
+        c.fillStyle = '#0e2538';
+        c.fillRect(0,r*CELL,canvas.width,CELL);
+        // Sparkle ice lines
+        c.globalAlpha=0.15;
+        c.fillStyle = '#bfe7ff';
+        c.fillRect(0,r*CELL+CELL*0.2,canvas.width,2);
+        c.fillRect(0,r*CELL+CELL*0.7,canvas.width,2);
+        c.globalAlpha=1;
+      } else if (lane?.type==='road'){
+        c.fillStyle = '#1b1f2b';
+        c.fillRect(0,r*CELL,canvas.width,CELL);
+        // snow stripes
+        c.globalAlpha=0.2;
+        c.fillStyle = '#e7f2ff';
+        for (let i=0;i<canvas.width;i+=CELL*2){
+          c.fillRect(i, r*CELL+CELL*0.45, CELL, 4);
+        }
+        c.globalAlpha=1;
+      } else {
+        // safe/snow
+        c.fillStyle = '#0f1620';
+        c.fillRect(0,r*CELL,canvas.width,CELL);
+      }
+    }
+
+    // Platforms
+    for (const p of platforms){
+      const xpx = (p.x*CELL);
+      c.fillStyle = '#79a4c7';
+      c.fillRect(xpx, p.lane*CELL+6, p.size*CELL, CELL-12);
+      // skating elf silhouette (placeholder notch)
+      c.fillStyle = '#0b0e13';
+      c.fillRect(xpx+8, p.lane*CELL+10, 10, 10);
+    }
+
+    // Hazards
+    for (const h of hazards){
+      const xpx = (h.x*CELL);
+      // sled body
+      c.fillStyle = '#b3453c';
+      c.fillRect(xpx, h.lane*CELL+10, h.size*CELL, CELL-20);
+      // runners
+      c.fillStyle = '#7a2d26';
+      c.fillRect(xpx, h.lane*CELL+CELL-8, h.size*CELL, 3);
+    }
+
+    // Letters
+    for (const L of letters){
+      if (L.taken) continue;
+      const r = rectFor(L.col,L.row,0.7,0.7);
+      c.fillStyle = '#e7f2ff';
+      c.fillRect(r.x, r.y, r.w, r.h);
+      c.fillStyle = '#0b0e13';
+      c.font = 'bold 22px system-ui';
+      c.textAlign = 'center';
+      c.textBaseline = 'middle';
+      c.fillText(L.ch, r.x + r.w/2, r.y + r.h/2 + 1);
+    }
+
+    // Player (Krampus placeholder)
+    const pr = rectFor(player.col, player.row, player.w, player.h);
+    // cloak
+    c.fillStyle = '#7b0b12';
+    c.fillRect(pr.x, pr.y+8, pr.w, pr.h-8);
+    // head
+    c.fillStyle = '#2a0a0a';
+    c.fillRect(pr.x+pr.w*0.2, pr.y, pr.w*0.6, pr.h*0.35);
+    // horns
+    c.fillStyle = '#e7f2ff';
+    c.fillRect(pr.x+4, pr.y-4, 6, 6);
+    c.fillRect(pr.x+pr.w-10, pr.y-4, 6, 6);
+  }
+
+  // HUD
+  function updateHud(){
+    const pad = n => String(n).padStart(5,'0');
+    document.getElementById('lives').textContent = '❤️ x'+state.lives;
+    document.getElementById('level').textContent = 'Level '+state.level;
+    document.getElementById('score').textContent = 'Score '+pad(state.score);
+  }
+
+  // Main loop
+  let last=0;
+  function loop(ts){
+    if (!last) last = ts;
+    const dt = Math.min(50, ts-last); // clamp big gaps
+    last = ts;
+
+    if (!state.over){
+      step(dt);
+      draw();
+      requestAnimationFrame(loop);
+    } else {
+      draw();
+      c.fillStyle = '#e7f2ff';
+      c.font = 'bold 30px system-ui';
+      c.textAlign = 'center';
+      c.fillText('Out of Lives! Refresh to retry.', canvas.width/2, canvas.height/2);
+    }
+  }
+
+  // Init
+  populate();
+  updateHud();
+  resetPlayer();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
