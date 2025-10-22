@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Krampus Invaders – Stage 2</title>
+<style>
+  html,body{margin:0;padding:0;background:#0a0f1a;color:#e7f2ff;font-family:Courier New,monospace;overflow:hidden;}
+  canvas{display:block;margin:0 auto;background:radial-gradient(circle at center,#0d1525 0%,#05080d 100%);
+         border:2px solid #283a56;border-radius:12px;box-shadow:0 0 25px #000a;}
+  #hud{position:fixed;top:10px;left:50%;transform:translateX(-50%);
+       text-align:center;font-weight:600;}
+  #flag{display:none;background:#101b2b;border:1px solid #355;padding:8px 16px;
+        border-radius:8px;margin-top:12px;box-shadow:0 0 10px #000a;}
+</style>
+</head>
+<body>
+<canvas id="game" width="600" height="700"></canvas>
+<div id="hud">
+  <div id="stats">Score: 0000 | Lives: 3 | Level: 1</div>
+  <div id="flag">Flag{KRAMPUS-SNOWSTORM-STAGE2}</div>
+</div>
+
+<script>
+(() => {
+const cvs = document.getElementById('game');
+const ctx = cvs.getContext('2d');
+const W = cvs.width, H = cvs.height;
+
+let keys = {};
+addEventListener('keydown',e=>{keys[e.code]=true;});
+addEventListener('keyup',e=>{keys[e.code]=false;});
+
+const game = {
+  level:1,
+  score:0,
+  lives:3,
+  over:false,
+  enemies:[],
+  snowballs:[],
+  enemyBalls:[],
+  t:0
+};
+
+// Player (Krampus)
+const player = {x:W/2, y:H-70, w:40, h:40, cooldown:0};
+
+// Helper
+function rect(a,b){
+  return !(a.x+a.w<b.x || a.x>b.x+b.w || a.y+a.h<b.y || a.y>b.y+b.h);
+}
+
+// Reset enemies
+function spawnWave(){
+  game.enemies=[];
+  const rows=3+game.level, cols=8;
+  for(let r=0;r<rows;r++){
+    for(let c=0;c<cols;c++){
+      game.enemies.push({
+        x:80+c*55,
+        y:60+r*45,
+        w:35,h:30,
+        type: ["elf","ginger","gift"][r%3],
+        dir:1
+      });
+    }
+  }
+}
+
+function drawKrampus(){
+  ctx.fillStyle="#7b0b12"; // cloak
+  ctx.fillRect(player.x,player.y,player.w,player.h);
+  ctx.fillStyle="#2a0a0a"; // head
+  ctx.fillRect(player.x+8,player.y-10,24,14);
+  ctx.fillStyle="#e7f2ff"; // horns
+  ctx.fillRect(player.x+5,player.y-14,6,6);
+  ctx.fillRect(player.x+player.w-11,player.y-14,6,6);
+}
+
+// Game loop
+function update(dt){
+  if(game.over) return;
+
+  // Move player
+  const speed=300*dt;
+  if(keys["ArrowLeft"]||keys["KeyA"]) player.x-=speed;
+  if(keys["ArrowRight"]||keys["KeyD"]) player.x+=speed;
+  player.x=Math.max(0,Math.min(W-player.w,player.x));
+  if(player.cooldown>0) player.cooldown-=dt;
+
+  // Fire snowball
+  if(keys["Space"] && player.cooldown<=0){
+    game.snowballs.push({x:player.x+player.w/2-3,y:player.y-10,w:6,h:10,v:-450});
+    player.cooldown=0.35;
+  }
+
+  // Update snowballs
+  game.snowballs.forEach(b=>b.y+=b.v*dt);
+  game.snowballs=game.snowballs.filter(b=>b.y>-20);
+
+  // Move enemies
+  let moveDown=false;
+  for(const e of game.enemies){
+    e.x+=80*dt*e.dir;
+    if(e.x<20 || e.x+e.w>W-20) moveDown=true;
+  }
+  if(moveDown){
+    for(const e of game.enemies){e.dir*=-1;e.y+=20;}
+  }
+
+  // Enemy fire
+  if(Math.random()<0.015*game.level){
+    const shooters=game.enemies.filter(()=>Math.random()<0.2);
+    shooters.forEach(s=>{
+      game.enemyBalls.push({x:s.x+s.w/2-3,y:s.y+s.h,w:6,h:10,v:300});
+    });
+  }
+  game.enemyBalls.forEach(b=>b.y+=b.v*dt);
+  game.enemyBalls=game.enemyBalls.filter(b=>b.y<H+20);
+
+  // Collisions
+  for(const b of game.snowballs){
+    for(const e of game.enemies){
+      if(rect(b,e)){
+        e.dead=true; b.dead=true;
+        game.score+=10;
+      }
+    }
+  }
+  game.snowballs=game.snowballs.filter(b=>!b.dead);
+  game.enemies=game.enemies.filter(e=>!e.dead);
+
+  // Enemy hit player
+  for(const eb of game.enemyBalls){
+    if(rect(eb,player)){
+      eb.dead=true;
+      game.lives--;
+      if(game.lives<=0){game.over=true;}
+    }
+  }
+  game.enemyBalls=game.enemyBalls.filter(b=>!b.dead);
+
+  // Enemies reach bottom
+  for(const e of game.enemies){
+    if(e.y+e.h>=player.y){game.over=true;}
+  }
+
+  // Level clear
+  if(game.enemies.length===0){
+    game.level++;
+    if(game.level>=3){
+      document.getElementById('flag').style.display='inline-block';
+      try{localStorage.setItem('xmas_stage2_flag','Flag{KRAMPUS-SNOWSTORM-STAGE2}');}catch(e){}
+    }
+    spawnWave();
+  }
+}
+
+function draw(){
+  ctx.clearRect(0,0,W,H);
+
+  // Draw player
+  drawKrampus();
+
+  // Draw snowballs
+  ctx.fillStyle="#bfe7ff";
+  game.snowballs.forEach(b=>ctx.fillRect(b.x,b.y,b.w,b.h));
+
+  // Draw enemy balls
+  ctx.fillStyle="#ffaaaa";
+  game.enemyBalls.forEach(b=>ctx.fillRect(b.x,b.y,b.w,b.h));
+
+  // Draw enemies
+  for(const e of game.enemies){
+    if(e.type==="elf") ctx.fillStyle="#34e06b";
+    else if(e.type==="ginger") ctx.fillStyle="#d97c3f";
+    else ctx.fillStyle="#e0c83c";
+    ctx.fillRect(e.x,e.y,e.w,e.h);
+    ctx.fillStyle="#000";
+    ctx.fillRect(e.x+5,e.y+5,4,4);
+    ctx.fillRect(e.x+e.w-9,e.y+5,4,4);
+  }
+
+  // HUD
+  document.getElementById('stats').textContent=
+    `Score: ${String(game.score).padStart(4,'0')} | Lives: ${game.lives} | Level: ${game.level}`;
+  
+  if(game.over){
+    ctx.fillStyle="#fff";
+    ctx.font="bold 32px Courier New";
+    ctx.textAlign="center";
+    ctx.fillText("Krampus Defeated!",W/2,H/2);
+    ctx.font="18px Courier New";
+    ctx.fillText("Refresh to play again",W/2,H/2+40);
+  }
+}
+
+let last=0;
+function loop(ts){
+  const dt=(ts-last)/1000; last=ts;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+// Start
+spawnWave();
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
