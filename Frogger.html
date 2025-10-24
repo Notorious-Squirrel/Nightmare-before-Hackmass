@@ -82,10 +82,11 @@
     letters: new Set(),
     t: 0,
     paused:false,
-    deathsThisLevel:0
+    deathsThisLevel:0,
+    toast:null
   };
 
-  // --- Lanes definition ---
+  // --- Lanes definition (ALL speeds set to 0.1) ---
   const lanes = [
     { y: 1,  type: 'goal' },
     { y: 2,  type: 'safe' },
@@ -94,7 +95,7 @@
     { y: 5,  type: 'ice',  dir: 1,  speed: 0.1, density: 0.26 },
     { y: 6,  type: 'safe' },
     { y: 7,  type: 'road', dir:-1,  speed: 0.1, density: 0.26 },
-    { y: 8,  type: 'road', dir: 1,  speed: 0.1,density: 0.28 },
+    { y: 8,  type: 'road', dir: 1,  speed: 0.1, density: 0.28 },
     { y: 9,  type: 'road', dir:-1,  speed: 0.1, density: 0.30 },
     { y:10,  type: 'safe' },
     { y:11,  type: 'road', dir: 1,  speed: 0.1, density: 0.27 },
@@ -130,7 +131,7 @@
     const count = Math.max(1, Math.floor(COLS * lane.density));
     for (let i=0;i<count;i++){
       const size = lane.type==='road' ? (Math.random()<0.5?1:2) : (Math.random()<0.5?2:3);
-      const speed = lane.speed * (1 + 0.09*(state.level-1));
+      const speed = 0.1; // *** fixed speed as requested ***
       const dir = lane.dir;
       const x = Math.random()*COLS;
       if (lane.type==='road') hazards.push({ lane:lane.y, x, size, speed, dir });
@@ -180,6 +181,7 @@
   document.getElementById('pauseBtn').addEventListener('click', togglePause);
 
   function togglePause(){ state.paused = !state.paused; document.getElementById('pauseBtn').textContent = state.paused ? '▶️ Resume' : '⏸️ Pause'; }
+  function showToast(msg, ms=1500){ state.toast = { msg, until: state.t + ms }; }
 
   // Utils
   function rectFor(col,row,w=1,h=1){ const px = col*CELL + (CELL*(1-w))/2; const py = row*CELL + (CELL*(1-h))/2; return { x:px, y:py, w:CELL*w, h:CELL*h }; }
@@ -199,9 +201,6 @@
       }
     }
     adv(hazards); adv(platforms);
-
-    // Blizzard flicker (reduces visibility on that lane)
-    // handled in draw()
 
     // Ice drift if standing on platform
     player.vx = 0;
@@ -250,8 +249,13 @@
         state.score += 250;
         state.letters.clear();
         if (state.goalsFilled>=state.requiredGoals) win();
+        resetPlayer();
+      } else {
+        // Missing letters: bounce player back to lane 2 and show hint
+        const missing = need.filter(ch => !state.letters.has(ch)).join('');
+        player.row = 2; // safe lane just below hazards
+        showToast(`Collect missing letters: ${missing}`, 1800);
       }
-      resetPlayer();
     }
   }
 
@@ -356,6 +360,17 @@
     c.fillStyle = '#2a0a0a'; c.fillRect(pr.x+pr.w*0.2, pr.y, pr.w*0.6, pr.h*0.35);
     c.fillStyle = '#e7f2ff'; c.fillRect(pr.x+4, pr.y-4, 6, 6); c.fillRect(pr.x+pr.w-10, pr.y-4, 6, 6);
     neonStrokeRect(pr.x+1, pr.y+8, pr.w-2, pr.h-10, 'rgba(139,92,246,0.75)');
+
+    // Toast (top center)
+    if (state.toast && state.t < state.toast.until){
+      const msg = state.toast.msg;
+      c.fillStyle = 'rgba(0,0,0,0.55)';
+      c.fillRect(canvas.width/2-160, 12, 320, 36);
+      c.fillStyle = '#fff';
+      c.font = 'bold 18px system-ui';
+      c.textAlign = 'center';
+      c.fillText(msg, canvas.width/2, 36);
+    } else if (state.toast && state.t >= state.toast.until){ state.toast = null; }
 
     // Pause/Over text
     if (state.over){
