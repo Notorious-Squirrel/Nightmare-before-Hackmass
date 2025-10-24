@@ -1,50 +1,74 @@
 <!doctype html>
+
 <html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Krampus Crossing – Stage 2</title>
 <style>
-  html,body { margin:0; background:#0b0e13; font-family:system-ui,Segoe UI,Roboto,Arial; color:#e7f2ff; }
-  .wrap { display:flex; flex-direction:column; align-items:center; gap:8px; padding:12px; }
-  canvas { background:linear-gradient(#0f1620 35%, #122131 65%); border:2px solid #2d4059; border-radius:10px; box-shadow:0 10px 30px #0008; touch-action:none }
-  .hud { width:480px; max-width:95vw; display:flex; justify-content:space-between; align-items:center; font-weight:600; }
+  :root{
+    --bg:#0a0b14;
+    --panel:#0f1422;
+    --line:#1e2b47;
+    --neon1:#8b5cf6; /* purple */
+    --neon2:#10b981; /* emerald */
+    --ice:#bfe7ff;
+    --text:#e7f2ff;
+    --danger:#ff5b6e;
+  }
+  html,body { margin:0; background:var(--bg); font-family:system-ui,Segoe UI,Roboto,Arial; color:var(--text); }
+  .wrap { display:flex; flex-direction:column; align-items:center; gap:10px; padding:16px; }
+  canvas { background:linear-gradient(#0f1620 35%, #101a2a 65%); border:2px solid var(--line); border-radius:14px; box-shadow:0 10px 30px #0008, 0 0 40px #000 inset; touch-action:none }
+  .hud { width:520px; max-width:95vw; display:flex; justify-content:space-between; align-items:center; font-weight:700; }
+  .hud .pill{padding:6px 10px;border-radius:999px;background:linear-gradient(90deg, color-mix(in oklab, var(--neon1) 35%, transparent), color-mix(in oklab, var(--neon2) 35%, transparent)); border:1px solid var(--line); box-shadow:0 0 12px color-mix(in oklab, var(--neon1) 25%, transparent), 0 0 12px color-mix(in oklab, var(--neon2) 25%, transparent) inset;}
+  .row{width:520px; max-width:95vw; display:flex; gap:10px; justify-content:space-between; align-items:center}
   .btns { display:none; gap:8px; flex-wrap:wrap; justify-content:center; }
-  .btns button { min-width:74px; min-height:54px; border-radius:10px; background:#1b2940; border:1px solid #2d4059; color:#e7f2ff; font-weight:700; }
-  .flag { display:none; background:#0e1a2a; border:1px solid #355; padding:10px 12px; border-radius:8px; width:480px; max-width:95vw; }
-  @media (max-width:620px){ .btns{display:flex} .hud{width:100%} }
+  .btns button { min-width:74px; min-height:54px; border-radius:12px; background:var(--panel); border:1px solid var(--line); color:var(--text); font-weight:800; letter-spacing:0.5px; box-shadow:0 6px 18px #0006; }
+  .flag { display:none; background:var(--panel); border:1px solid var(--line); padding:12px 14px; border-radius:12px; width:520px; max-width:95vw; box-shadow:0 0 22px color-mix(in oklab, var(--neon1) 30%, transparent); }
+  .controls {font-size:12px; opacity:0.85}
+  .cta {padding:6px 10px; border-radius:10px; background:var(--panel); border:1px solid var(--line); cursor:pointer;}
+  @media (max-width:700px){ .btns{display:flex} .hud,.row{width:100%} }
 </style>
 </head>
 <body>
   <div class="wrap">
     <div class="hud">
-      <div id="lives">❤️ x3</div>
-      <div id="level">Level 1</div>
-      <div id="score">Score 00000</div>
-    </div>
-    <canvas id="game" width="480" height="640" aria-label="Krampus Crossing"></canvas>
+      <div id="lives" class="pill">❤️ x3</div>
+      <div id="level" class="pill">Level 1</div>
+      <div id="score" class="pill">Score 00000</div>
+    </div><canvas id="game" width="520" height="720" aria-label="Krampus Crossing"></canvas>
 
-    <div class="btns" aria-label="Mobile controls">
-      <button data-d="up">▲</button>
-      <div style="display:flex; gap:8px">
-        <button data-d="left">◀</button>
-        <button data-d="down">▼</button>
-        <button data-d="right">▶</button>
-      </div>
-    </div>
+<div class="row">
+  <div class="controls">⬅️/➡️ or A/D to move • ⬆️/⬇️ or W/S to step • P = pause</div>
+  <button id="pauseBtn" class="cta">⏸️ Pause</button>
+</div>
 
-    <div id="flagBox" class="flag"></div>
+<div class="btns" aria-label="Mobile controls">
+  <button data-d="up">▲</button>
+  <div style="display:flex; gap:8px">
+    <button data-d="left">◀</button>
+    <button data-d="down">▼</button>
+    <button data-d="right">▶</button>
   </div>
+</div>
 
-<script>
-(() => {
+<div id="flagBox" class="flag"></div>
+
+  </div><script>
+(()=>{
+  // ====== CONFIG ======
+  const FLAG = 'Flag{KRAMPUS-CROSSING-STAGE2}'; // <- change per deployment
+  const PERFECT_RUN_REQUIRED = true;            // require no deaths in current level
+  const TARGET_LEVEL_TO_REVEAL = 3;            // reveal on reaching this level+ (with condition)
+
   const canvas = document.getElementById('game');
   const c = canvas.getContext('2d');
+  const W = canvas.width;
 
   // --- Grid / sizing ---
-  const COLS = 12, ROWS = 16;
-  const CELL = Math.floor(canvas.width / COLS); // 40px on 480 width
-  const H = CELL * ROWS; // 640
+  const COLS = 13, ROWS = 18;
+  const CELL = Math.floor(canvas.width / COLS);
+  const H = CELL * ROWS;
   canvas.height = H;
 
   // --- Game state ---
@@ -55,44 +79,46 @@
     goalsFilled: 0,
     requiredGoals: 3,
     over: false,
-    letters: new Set(), // collectable letters for CTF
-    t: 0
+    letters: new Set(),
+    t: 0,
+    paused:false,
+    deathsThisLevel:0
   };
 
   // --- Lanes definition ---
-  // y indices from top (0) to bottom (ROWS-1)
-  // Type 'road' = collisions with hazards; 'ice' = requires platform or drown
   const lanes = [
-    { y: 1, type: 'goal' }, // chimney row
-    { y: 2, type: 'safe', snow: true },
-    { y: 3, type: 'ice', dir: 1, speed: 0.1, density: 0.23 },
-    { y: 4, type: 'ice', dir:-1, speed: 0.1, density: 0.25 },
-    { y: 5, type: 'ice', dir: 1, speed: 0.1, density: 0.27 },
-    { y: 6, type: 'safe', snow: true },
-    { y: 7, type: 'road', dir:-1, speed: 0.1, density: 0.28 },
-    { y: 8, type: 'road', dir: 1, speed: 0.1, density: 0.30 },
-    { y: 9, type: 'road', dir:-1, speed: 0.1, density: 0.32 },
-    { y:10, type: 'safe', snow: true },
-    { y:11, type: 'road', dir: 1, speed: 0.1, density: 0.26 },
-    { y:12, type: 'road', dir:-1, speed: 0.1, density: 0.28 },
-    { y:13, type: 'safe', snow: true },
-    { y:14, type: 'road', dir: 1, speed: 0.1, density: 0.24 },
+    { y: 1,  type: 'goal' },
+    { y: 2,  type: 'safe' },
+    { y: 3,  type: 'ice',  dir: 1,  speed: 0.8, density: 0.22 },
+    { y: 4,  type: 'ice',  dir:-1,  speed: 1.0, density: 0.24 },
+    { y: 5,  type: 'ice',  dir: 1,  speed: 1.2, density: 0.26 },
+    { y: 6,  type: 'safe' },
+    { y: 7,  type: 'road', dir:-1,  speed: 1.2, density: 0.26 },
+    { y: 8,  type: 'road', dir: 1,  speed: 1.35,density: 0.28 },
+    { y: 9,  type: 'road', dir:-1,  speed: 1.5, density: 0.30 },
+    { y:10,  type: 'safe' },
+    { y:11,  type: 'road', dir: 1,  speed: 1.4, density: 0.27 },
+    { y:12,  type: 'blizzard' }, // visibility lane
+    { y:13,  type: 'road', dir:-1,  speed: 1.6, density: 0.30 },
+    { y:14,  type: 'safe' },
+    { y:15,  type: 'road', dir: 1,  speed: 1.3, density: 0.24 },
+    { y:16,  type: 'safe' },
   ];
 
   // --- Player (Krampus) ---
   const player = {
     col: Math.floor(COLS/2),
     row: ROWS-1,
-    w: 0.8, h: 0.8, // relative to cell
-    vx: 0, // drift when on ice platform
+    w: 0.8, h: 0.8,
+    vx: 0,
   };
 
   // --- Entities ---
-  const hazards = [];   // sleds/nutcrackers cars
+  const hazards = [];   // sleds/nutcrackers
   const platforms = []; // ice blocks / skating elves
   const letters = [];   // collectibles e.g., 'C','T','F','2'
 
-  function resetPlayer() {
+  function resetPlayer(){
     player.col = Math.floor(COLS/2);
     player.row = ROWS-1;
     player.vx = 0;
@@ -100,44 +126,41 @@
 
   // Spawn helpers
   function spawnRow(lane) {
-    const count = Math.floor(COLS * lane.density);
+    if (!('density' in lane)) return;
+    const count = Math.max(1, Math.floor(COLS * lane.density));
     for (let i=0;i<count;i++){
       const size = lane.type==='road' ? (Math.random()<0.5?1:2) : (Math.random()<0.5?2:3);
-      const speed = lane.speed * (1 + 0.08*(state.level-1));
+      const speed = lane.speed * (1 + 0.09*(state.level-1));
       const dir = lane.dir;
       const x = Math.random()*COLS;
-      if (lane.type==='road'){
-        hazards.push({ lane:lane.y, x, size, speed, dir });
-      } else if (lane.type==='ice'){
-        platforms.push({ lane:lane.y, x, size, speed, dir });
-      }
+      if (lane.type==='road') hazards.push({ lane:lane.y, x, size, speed, dir });
+      else if (lane.type==='ice') platforms.push({ lane:lane.y, x, size, speed, dir });
     }
   }
 
   function populate() {
     hazards.length = 0; platforms.length = 0; letters.length = 0;
-    for (const lane of lanes){
-      if (lane.type==='road' || lane.type==='ice') spawnRow(lane);
-    }
-    // place letters across random safe/ice lanes (CTF hook)
+    for (const lane of lanes){ if (lane.type==='road' || lane.type==='ice') spawnRow(lane); }
+    // Letters for CTF
     const needed = ['C','T','F','2'];
     needed.forEach(ch => {
-      let placed=false;
-      while(!placed){
+      let placed=false, guard=0;
+      while(!placed && guard++<100){
         const lane = lanes[Math.floor(Math.random()*lanes.length)];
         if (lane.type==='safe' || lane.type==='ice') {
           const col = 1 + Math.floor(Math.random()*(COLS-2));
-          letters.push({ch, col, row: lane.y, taken:false});
-          placed=true;
+          if (!letters.some(L=>L.col===col && L.row===lane.y)){
+            letters.push({ch, col, row: lane.y, taken:false});
+            placed=true;
+          }
         }
       }
     });
   }
 
   // Movement & input
-  const held = { up:false,down:false,left:false,right:false };
   function move(d){
-    if (state.over) return;
+    if (state.over || state.paused) return;
     if (d==='up'   && player.row>0)        player.row--;
     if (d==='down' && player.row<ROWS-1)   player.row++;
     if (d==='left' && player.col>0)        player.col--;
@@ -147,27 +170,24 @@
 
   addEventListener('keydown',e=>{
     const k = e.key.toLowerCase();
+    if (k==='p') togglePause();
     if (['arrowup','w'].includes(k)) move('up');
     if (['arrowdown','s'].includes(k)) move('down');
     if (['arrowleft','a'].includes(k)) move('left');
     if (['arrowright','d'].includes(k)) move('right');
   });
+  document.querySelectorAll('.btns button').forEach(b=> b.addEventListener('click', ()=> move(b.dataset.d)));
+  document.getElementById('pauseBtn').addEventListener('click', togglePause);
 
-  // Mobile controls
-  document.querySelectorAll('.btns button').forEach(b=>{
-    b.addEventListener('click', ()=> move(b.dataset.d));
-  });
+  function togglePause(){ state.paused = !state.paused; document.getElementById('pauseBtn').textContent = state.paused ? '▶️ Resume' : '⏸️ Pause'; }
 
   // Utils
-  function rectFor(col,row,w=1,h=1){
-    const px = col*CELL + (CELL*(1-w))/2;
-    const py = row*CELL + (CELL*(1-h))/2;
-    return { x:px, y:py, w:CELL*w, h:CELL*h };
-  }
+  function rectFor(col,row,w=1,h=1){ const px = col*CELL + (CELL*(1-w))/2; const py = row*CELL + (CELL*(1-h))/2; return { x:px, y:py, w:CELL*w, h:CELL*h }; }
   function intersects(a,b){ return a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y; }
 
   // Game loop
   function step(dt) {
+    if (state.paused) return;
     state.t += dt;
 
     // Move hazards/platforms
@@ -180,23 +200,24 @@
     }
     adv(hazards); adv(platforms);
 
+    // Blizzard flicker (reduces visibility on that lane)
+    // handled in draw()
+
     // Ice drift if standing on platform
     player.vx = 0;
-    const lane = lanes.find(l => l.y===player.row);
+    const lane = lanes.find(l => l.y===Math.round(player.row));
     if (lane && lane.type==='ice'){
-      // Check if on platform
       let onPlat=false;
       for (const p of platforms){
-        if (p.lane!==player.row) continue;
+        if (p.lane!==Math.round(player.row)) continue;
         const pr = rectFor(p.x, p.lane, p.size, 0.9);
         const kr = rectFor(player.col, player.row, player.w, player.h);
-        // Shift p.x fractional for rect; test proximity
         if (intersects(kr, pr)){ onPlat=true; player.vx = p.speed*p.dir*dt*0.06; break; }
       }
       if (!onPlat) die();
     }
 
-    // Apply drift (fractional col position → snap when drawing/colliding)
+    // Apply drift
     if (player.vx !== 0){
       const newX = player.col + player.vx;
       player.col = Math.max(0, Math.min(COLS-1, newX));
@@ -206,7 +227,7 @@
     if (lane && lane.type==='road'){
       const kr = rectFor(player.col, player.row, player.w, player.h);
       for (const h of hazards){
-        if (h.lane!==player.row) continue;
+        if (h.lane!==Math.round(player.row)) continue;
         const hr = rectFor(h.x, h.lane, h.size, 0.8);
         if (intersects(kr, hr)) { die(); break; }
       }
@@ -221,15 +242,13 @@
     }
 
     // Reached goals row?
-    if (player.row===1){
-      // Optional: require all letters to bank a goal
+    if (Math.round(player.row)===1){
       const need = ['C','T','F','2'];
       const ok = need.every(ch => state.letters.has(ch));
       if (ok){
         state.goalsFilled++;
         state.score += 250;
         state.letters.clear();
-        // Show a subtle progress toast (optional)
         if (state.goalsFilled>=state.requiredGoals) win();
       }
       resetPlayer();
@@ -237,122 +256,117 @@
   }
 
   function die(){
-    state.lives--;
+    state.lives--; state.deathsThisLevel++;
     updateHud();
-    if (state.lives<=0) {
-      state.over = true;
-    }
+    if (state.lives<=0) { state.over = true; }
     resetPlayer();
   }
 
   function win(){
+    // Reveal flag if conditions met
+    const flagBox = document.getElementById('flagBox');
+    const canReveal = state.level+1 >= TARGET_LEVEL_TO_REVEAL && (!PERFECT_RUN_REQUIRED || state.deathsThisLevel===0);
+    if (canReveal){
+      flagBox.textContent = FLAG;
+      flagBox.style.display = 'block';
+      try { localStorage.setItem('xmas_s2_flag', FLAG); } catch(e){}
+    }
+
     state.level++;
     state.goalsFilled = 0;
     state.requiredGoals = Math.min(5, state.requiredGoals+1);
-    // Reveal flag if perfect (no deaths since level start) OR level 3+
-    const flagBox = document.getElementById('flagBox');
-    if (state.level>=3){
-      // You can change the flag format to suit your CTF
-      flagBox.textContent = 'Flag{KRAMPUS-CROSSING-STAGE2}';
-      flagBox.style.display = 'block';
-      // Also stash in localStorage as a breadcrumb:
-      try { localStorage.setItem('xmas_s2_flag','Flag{KRAMPUS-CROSSING-STAGE2}'); } catch(e){}
-    }
+    state.deathsThisLevel = 0;
+
     populate();
     updateHud();
     resetPlayer();
   }
 
+  // Rendering helpers
+  function neonStrokeRect(x,y,w,h,color){
+    c.save();
+    c.strokeStyle = color; c.lineWidth = 2;
+    c.shadowColor = color; c.shadowBlur = 12; c.strokeRect(x,y,w,h);
+    c.restore();
+  }
+
   // Rendering
   function draw() {
-    // Background lanes
     c.clearRect(0,0,canvas.width,canvas.height);
 
+    // Background lanes
     for (let r=0;r<ROWS;r++){
       const lane = lanes.find(l=>l.y===r);
       if (lane?.type==='goal'){
-        // Chimneys row
-        c.fillStyle = '#1a2a3d';
-        c.fillRect(0,r*CELL,canvas.width,CELL);
-        // Chimneys
-        for (let i=0;i<COLS;i+=3){
-          c.fillStyle = '#572b2b';
-          c.fillRect(i*CELL+10, r*CELL+6, CELL-20, CELL-12);
-          c.fillStyle = '#333';
-          c.fillRect(i*CELL+14, r*CELL, CELL-28, 10);
+        c.fillStyle = '#101b2b'; c.fillRect(0,r*CELL,canvas.width,CELL);
+        for (let i=0;i<COLS;i+=3){ // chimneys
+          c.fillStyle = '#572b2b'; c.fillRect(i*CELL+10, r*CELL+6, CELL-20, CELL-12);
+          c.fillStyle = '#333'; c.fillRect(i*CELL+14, r*CELL, CELL-28, 10);
         }
       } else if (lane?.type==='ice'){
-        c.fillStyle = '#0e2538';
-        c.fillRect(0,r*CELL,canvas.width,CELL);
-        // Sparkle ice lines
-        c.globalAlpha=0.15;
-        c.fillStyle = '#bfe7ff';
+        c.fillStyle = '#0e2538'; c.fillRect(0,r*CELL,canvas.width,CELL);
+        c.globalAlpha=0.15; c.fillStyle = '#bfe7ff';
         c.fillRect(0,r*CELL+CELL*0.2,canvas.width,2);
-        c.fillRect(0,r*CELL+CELL*0.7,canvas.width,2);
-        c.globalAlpha=1;
+        c.fillRect(0,r*CELL+CELL*0.7,canvas.width,2); c.globalAlpha=1;
       } else if (lane?.type==='road'){
-        c.fillStyle = '#1b1f2b';
-        c.fillRect(0,r*CELL,canvas.width,CELL);
-        // snow stripes
-        c.globalAlpha=0.2;
-        c.fillStyle = '#e7f2ff';
-        for (let i=0;i<canvas.width;i+=CELL*2){
-          c.fillRect(i, r*CELL+CELL*0.45, CELL, 4);
-        }
+        c.fillStyle = '#121726'; c.fillRect(0,r*CELL,canvas.width,CELL);
+        c.globalAlpha=0.25; c.fillStyle = '#e7f2ff';
+        for (let i=0;i<canvas.width;i+=CELL*2){ c.fillRect(i, r*CELL+CELL*0.45, CELL, 3); }
         c.globalAlpha=1;
+      } else if (lane?.type==='blizzard'){
+        c.fillStyle = '#0d1624'; c.fillRect(0,r*CELL,canvas.width,CELL);
+        // fog overlay pulsing
+        const fog = (Math.sin(state.t*0.004 + r)*0.5+0.5)*0.45;
+        c.fillStyle = `rgba(200,230,255,${fog})`; c.fillRect(0,r*CELL,canvas.width,CELL);
       } else {
-        // safe/snow
-        c.fillStyle = '#0f1620';
-        c.fillRect(0,r*CELL,canvas.width,CELL);
+        c.fillStyle = '#0f1620'; c.fillRect(0,r*CELL,canvas.width,CELL);
       }
     }
 
-    // Platforms
+    // Platforms (ice)
     for (const p of platforms){
       const xpx = (p.x*CELL);
       c.fillStyle = '#79a4c7';
       c.fillRect(xpx, p.lane*CELL+6, p.size*CELL, CELL-12);
-      // skating elf silhouette (placeholder notch)
-      c.fillStyle = '#0b0e13';
-      c.fillRect(xpx+8, p.lane*CELL+10, 10, 10);
+      neonStrokeRect(xpx+2, p.lane*CELL+8, p.size*CELL-4, CELL-16, 'rgba(16,185,129,0.7)');
     }
 
-    // Hazards
+    // Hazards (sleds)
     for (const h of hazards){
       const xpx = (h.x*CELL);
-      // sled body
       c.fillStyle = '#b3453c';
       c.fillRect(xpx, h.lane*CELL+10, h.size*CELL, CELL-20);
-      // runners
-      c.fillStyle = '#7a2d26';
-      c.fillRect(xpx, h.lane*CELL+CELL-8, h.size*CELL, 3);
+      c.fillStyle = '#7a2d26'; c.fillRect(xpx, h.lane*CELL+CELL-8, h.size*CELL, 3);
+      neonStrokeRect(xpx+1, h.lane*CELL+11, h.size*CELL-2, CELL-22, 'rgba(139,92,246,0.7)');
     }
 
     // Letters
     for (const L of letters){
       if (L.taken) continue;
       const r = rectFor(L.col,L.row,0.7,0.7);
-      c.fillStyle = '#e7f2ff';
-      c.fillRect(r.x, r.y, r.w, r.h);
-      c.fillStyle = '#0b0e13';
-      c.font = 'bold 22px system-ui';
-      c.textAlign = 'center';
-      c.textBaseline = 'middle';
+      c.fillStyle = '#e7f2ff'; c.fillRect(r.x, r.y, r.w, r.h);
+      neonStrokeRect(r.x, r.y, r.w, r.h, 'rgba(139,92,246,0.8)');
+      c.fillStyle = '#0b0e13'; c.font = 'bold 22px system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle';
       c.fillText(L.ch, r.x + r.w/2, r.y + r.h/2 + 1);
     }
 
-    // Player (Krampus placeholder)
+    // Player (Krampus placeholder, neon-ed)
     const pr = rectFor(player.col, player.row, player.w, player.h);
-    // cloak
-    c.fillStyle = '#7b0b12';
-    c.fillRect(pr.x, pr.y+8, pr.w, pr.h-8);
-    // head
-    c.fillStyle = '#2a0a0a';
-    c.fillRect(pr.x+pr.w*0.2, pr.y, pr.w*0.6, pr.h*0.35);
-    // horns
-    c.fillStyle = '#e7f2ff';
-    c.fillRect(pr.x+4, pr.y-4, 6, 6);
-    c.fillRect(pr.x+pr.w-10, pr.y-4, 6, 6);
+    c.fillStyle = '#7b0b12'; c.fillRect(pr.x, pr.y+8, pr.w, pr.h-8);
+    c.fillStyle = '#2a0a0a'; c.fillRect(pr.x+pr.w*0.2, pr.y, pr.w*0.6, pr.h*0.35);
+    c.fillStyle = '#e7f2ff'; c.fillRect(pr.x+4, pr.y-4, 6, 6); c.fillRect(pr.x+pr.w-10, pr.y-4, 6, 6);
+    neonStrokeRect(pr.x+1, pr.y+8, pr.w-2, pr.h-10, 'rgba(139,92,246,0.75)');
+
+    // Pause/Over text
+    if (state.over){
+      c.fillStyle = '#fff'; c.font = 'bold 30px system-ui'; c.textAlign = 'center';
+      c.fillText('Out of Lives! Refresh to retry.', canvas.width/2, canvas.height/2);
+    } else if (state.paused){
+      c.fillStyle = '#fff'; c.font = 'bold 30px system-ui'; c.textAlign = 'center';
+      c.fillText('Paused', canvas.width/2, canvas.height/2);
+    }
+
+    updateHud();
   }
 
   // HUD
@@ -366,21 +380,9 @@
   // Main loop
   let last=0;
   function loop(ts){
-    if (!last) last = ts;
-    const dt = Math.min(50, ts-last); // clamp big gaps
-    last = ts;
-
-    if (!state.over){
-      step(dt);
-      draw();
-      requestAnimationFrame(loop);
-    } else {
-      draw();
-      c.fillStyle = '#e7f2ff';
-      c.font = 'bold 30px system-ui';
-      c.textAlign = 'center';
-      c.fillText('Out of Lives! Refresh to retry.', canvas.width/2, canvas.height/2);
-    }
+    if (!last) last = ts; const dt = Math.min(50, ts-last); last = ts;
+    if (!state.over){ step(dt); draw(); requestAnimationFrame(loop); }
+    else { draw(); }
   }
 
   // Init
@@ -389,6 +391,5 @@
   resetPlayer();
   requestAnimationFrame(loop);
 })();
-</script>
-</body>
+</script></body>
 </html>
